@@ -30,30 +30,41 @@ against repository evidence, primary sources, or direct tests.
 ## Architecture
 
 ```mermaid
-flowchart LR
-    U["User task"] --> C1
-    subgraph CODEX["Codex — root orchestrator"]
-        C1["Frames a bounded packet"]
-        C2["Verifies evidence, decides, implements, and responds"]
-    end
-    C1 --> A["Grok Advisor skill selects one bounded role"]
-    A --> M["Read-only local stdio MCP bridge"]
-    M --> P["Fresh isolated Grok CLI process"]
-    P --> G["grok-4.5 · high effort"]
-    G --> J["Untrusted advice in a validated, redacted envelope"]
-    J --> C2
-    C2 --> U
+sequenceDiagram
+    autonumber
+    actor U as User
+    participant C as Codex — root orchestrator
+    participant B as Read-only local stdio MCP bridge
+    participant G as Fresh isolated Grok CLI process
+
+    Note over C,G: Codex retains control; Grok provides bounded, untrusted advice only
+    Note over B,G: Model-backed path shown; grok_status ends after preflight with no model call
+    Note over B,G: Panel mode may run two or three independent Grok processes in parallel
+
+    U->>C: Submit task
+    C->>C: Build a bounded packet and select one role per Grok Advisor policy
+    C->>B: Invoke the role-specific MCP tool
+    B->>B: Validate arguments, preflight, and isolate the runtime
+    B->>G: Run grok-4.5 with high effort
+    G-->>B: Return a role-specific response
+    B->>B: Validate, redact, clean up, and wrap
+    B-->>C: Return a stable JSON envelope
+    C->>C: Verify evidence, decide, and take any authorized action
+    C-->>U: Deliver the verified result
 ```
 
-The two stages inside the Codex boundary are the same root orchestrator, before
-and after the advisory call. For every call, Codex builds a self-contained
-packet. The bridge performs a no-model preflight, creates a fresh private
-runtime, launches Grok with the
-selected role, validates the result, removes thoughts and session metadata, and
-returns a stable envelope. No Grok session is resumed between calls.
+Codex is the sole root orchestrator. The Grok Advisor skill is Codex-side policy
+for choosing one bounded role; it is not a separate agent. Codex sends a
+self-contained packet to the read-only MCP bridge, which handles argument
+validation, preflight checks, runtime isolation, output validation, redaction,
+cleanup, and the stable envelope. Codex independently verifies the result before
+acting or responding.
 
-The panel launches each member as a separate process in parallel. Members do
-not see peer output; Codex alone compares and synthesizes their reviews.
+Every model-backed call uses a fresh stateless Grok process pinned to `grok-4.5`
+and high effort. Responses are role-specific: `consult_grok` returns prose,
+while plan, research, workspace, and panel modes return structured results.
+`grok_status` makes no model call. Panel mode may launch two or three independent
+processes in parallel; Codex alone compares and synthesizes their reviews.
 
 ## Tools
 
