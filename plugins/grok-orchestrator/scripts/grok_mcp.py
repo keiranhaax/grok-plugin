@@ -23,10 +23,11 @@ from urllib.parse import urlsplit
 
 
 SERVER_NAME = "grok-orchestrator"
-SERVER_VERSION = "0.2.0"
+SERVER_VERSION = "0.2.1"
 MODEL = "grok-4.5"
 EFFORT = "high"
 MIN_GROK_VERSION = (0, 2, 99)
+MIN_GROK_VERSION_TEXT = ".".join(str(part) for part in MIN_GROK_VERSION)
 
 GROK_TIMEOUT_SECONDS = 600
 STATUS_TIMEOUT_SECONDS = 30
@@ -41,10 +42,10 @@ MAX_AUTH_BYTES = 2 * 1024 * 1024
 AGENT_PROFILE_ROOT = Path(__file__).resolve().parent / "agent_profiles"
 PROFILE_HASHES = {
     "consult": "8f12607f700a001769bcd5e9a4575464a72d98bec04428edbc4fccbaf3def603",
-    "panel_review": "8dba408f57afe68f93a3611ebf43c834ee07e92bc76f143c164f6f255c4e1bc3",
-    "plan_review": "251fc54f514f33c7d278a330752188836c433c657374bbc295fef8d1234e7d01",
-    "research": "533a9cad75891332fdd27a44c6c39d53404ecec4b9a36da54a37f19a5e179085",
-    "workspace_review": "e00e2802f0891d726f6fac0c1b0b4bac345d87b546dee64b50cea4efd858723c",
+    "panel_review": "1c701be819ac0c50f529faa52ac118369f209989abc79fbd471562df682ec7d9",
+    "plan_review": "215dba3b652518517bb389a9d67a236c7162e27dfc77105a7f11a63917969ae2",
+    "research": "03b446b46ea6feb24c5ae3de9679ee26be03be91d09a378eb9987634a1c48960",
+    "workspace_review": "ec8f255b6f8aa09f3e166e8f98e7405feb4ee9e02ac4ee2cb49a89fdc40fa6c1",
 }
 
 PROFILE_FILES = {
@@ -428,7 +429,9 @@ MODE_CONFIG: dict[str, dict[str, Any]] = {
             "when there are no material findings; otherwise return PLAN_REVISE with "
             "prioritized corrections and concrete verification steps. Before "
             "returning, self-check the proposed JSON once for contradictions, "
-            "unsupported approval, and missing verification."
+            "unsupported approval, and missing verification. Return only "
+            "schema-conforming JSON without Markdown fences, preambles, or trailing "
+            "commentary."
         ),
     },
     "research": {
@@ -442,7 +445,9 @@ MODE_CONFIG: dict[str, dict[str, Any]] = {
         "rules": (
             "Act as a bounded web researcher for Codex. Use only web_search and "
             "web_fetch, prefer primary sources, attach direct http(s) source URLs "
-            "to every factual claim, and separate uncertainty from inference."
+            "to every factual claim, and separate uncertainty from inference. Return "
+            "only schema-conforming JSON without Markdown fences, preambles, or "
+            "trailing commentary."
         ),
     },
     "workspace_review": {
@@ -458,7 +463,9 @@ MODE_CONFIG: dict[str, dict[str, Any]] = {
             "grep, and list_dir. Report prioritized, evidenced findings with safe "
             "relative paths and recommended tests. Never edit or run commands. "
             "Before returning, self-check every finding once for direct evidence, "
-            "safe path syntax, impact, and a recommended test."
+            "safe path syntax, impact, and a recommended test. Return only "
+            "schema-conforming JSON without Markdown fences, preambles, or trailing "
+            "commentary."
         ),
     },
     "panel_review": {
@@ -474,7 +481,8 @@ MODE_CONFIG: dict[str, dict[str, Any]] = {
             "assigned lens, challenge assumptions, and recommend verification. "
             "Do not infer or synthesize the views of other panel members. Before "
             "returning, self-check the proposed JSON once for unsupported claims "
-            "and missing verification."
+            "and missing verification. Return only schema-conforming JSON without "
+            "Markdown fences, preambles, or trailing commentary."
         ),
     },
 }
@@ -998,6 +1006,7 @@ def _inspect_runtime(
 
 def grok_status() -> dict[str, Any]:
     profiles_ready, profiles = _profile_status()
+    readiness_issues = [] if profiles_ready else ["profiles_not_ready"]
     base: dict[str, Any] = {
         "ok": True,
         "mode": "status",
@@ -1017,7 +1026,9 @@ def grok_status() -> dict[str, Any]:
         "default_model": None,
         "cli_path": None,
         "cli_version": None,
+        "minimum_cli_version": MIN_GROK_VERSION_TEXT,
         "version_supported": False,
+        "readiness_issues": readiness_issues,
         "missing_capabilities": [],
         "check_with_no_subagents_supported": False,
         "self_check_strategy": "inline_no_subagents",
@@ -1078,9 +1089,12 @@ def grok_status() -> dict[str, Any]:
                     scratch,
                 )
     except GrokBridgeError as exc:
+        if exc.code not in readiness_issues:
+            readiness_issues.append(exc.code)
         base["error"] = {"code": exc.code, "message": str(exc)}
         return base
     except OSError:
+        readiness_issues.append("status_failed")
         base["error"] = {
             "code": "status_failed",
             "message": "The isolated Grok status check could not be completed.",
@@ -1133,6 +1147,17 @@ def grok_status() -> dict[str, Any]:
         api_key_disabled and integrations_isolated and configuration_isolated
     )
 
+    if not version_supported:
+        readiness_issues.append("cli_version_unsupported")
+    elif help_result.returncode != 0 or missing:
+        readiness_issues.append("cli_capabilities_unavailable")
+    if not authenticated:
+        readiness_issues.append("authentication_unavailable")
+    if not model_available:
+        readiness_issues.append("model_unavailable")
+    if not base["route_isolation_ready"]:
+        readiness_issues.append("route_isolation_unavailable")
+
     available = all(
         (
             profiles_ready,
@@ -1149,10 +1174,19 @@ def grok_status() -> dict[str, Any]:
             "code": "grok_unavailable",
             "message": (
                 "The isolated Grok route is not ready. Check CLI compatibility, "
-                "grok.com login, exact grok-4.5 availability, and bundled profiles."
+                "grok.com login, exact grok-4.5 availability, bundled profiles, "
+                "and readiness_issues for the failed gates."
             ),
         }
     return base
+
+
+def _readiness_error_details(status_result: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "readiness_issues": status_result.get("readiness_issues", []),
+        "cli_version": status_result.get("cli_version"),
+        "minimum_cli_version": status_result.get("minimum_cli_version"),
+    }
 
 
 def _disallowed_tools(allowed: tuple[str, ...]) -> str:
@@ -1688,6 +1722,7 @@ def _run_grok(
                 "grok_not_ready",
                 "The isolated Grok route is not ready; call grok_status for safe diagnostics.",
                 mode=mode,
+                details=_readiness_error_details(status_result),
             )
     _record_route_state("ready_unverified")
 
@@ -1825,8 +1860,28 @@ def _run_grok(
                 "invalid_structured_output",
                 "Grok returned malformed structured output.",
                 mode=mode,
+                details={
+                    "failure_stage": "json_decode",
+                    "automatic_retry_performed": False,
+                    "manual_retry_allowed": True,
+                },
             ) from exc
-        data = _validate_structured(mode, raw_data, effective_workspace)
+        try:
+            data = _validate_structured(mode, raw_data, effective_workspace)
+        except GrokBridgeError as exc:
+            if exc.code != "invalid_structured_output":
+                raise
+            raise GrokBridgeError(
+                exc.code,
+                str(exc),
+                mode=mode,
+                details={
+                    **exc.details,
+                    "failure_stage": "contract_validation",
+                    "automatic_retry_performed": False,
+                    "manual_retry_allowed": True,
+                },
+            ) from exc
         response["data"] = data
         response["text"] = json.dumps(
             data,
@@ -1856,6 +1911,7 @@ def _run_panel(packet: Any, panel_size: Any = 2) -> dict[str, Any]:
             "grok_not_ready",
             "The isolated Grok route is not ready; call grok_status for safe diagnostics.",
             mode="panel_review",
+            details=_readiness_error_details(status_result),
         )
 
     completed: dict[int, dict[str, Any]] = {}

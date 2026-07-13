@@ -28,7 +28,7 @@ class ReleaseContractTests(unittest.TestCase):
     def test_version_and_public_metadata_are_consistent(self) -> None:
         manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
         self.assertEqual(manifest["name"], "grok-orchestrator")
-        self.assertEqual(manifest["version"], "0.2.0")
+        self.assertEqual(manifest["version"], "0.2.1")
         self.assertEqual(manifest["author"]["name"], "Keiran Haax")
         self.assertEqual(manifest["interface"]["developerName"], "Keiran Haax")
         self.assertEqual(manifest["interface"]["displayName"], "Grok Advisor")
@@ -44,7 +44,7 @@ class ReleaseContractTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         architecture = readme.split("```mermaid", 1)[1].split("```", 1)[0]
-        self.assertIn("version-0.2.0", readme)
+        self.assertIn("version-0.2.1", readme)
         self.assertTrue(readme.startswith("# Grok Advisor for Codex\n"))
         self.assertIn("sequenceDiagram", readme)
         self.assertIn("participant C as Codex<br/>(orchestrator)", readme)
@@ -66,7 +66,11 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertEqual(architecture.count("Note over"), 1)
         self.assertNotIn(";", architecture)
         self.assertIn("## Unreleased", changelog)
+        self.assertIn("## 0.2.1 - 2026-07-13", changelog)
         self.assertIn("## 0.2.0", changelog)
+        self.assertIn("credential-free isolated marketplace", readme)
+        self.assertIn("does not run `grok_status`", readme)
+        self.assertIn("model-backed call consumes Grok allowance", readme)
 
     def test_marketplace_and_mcp_launch_contract(self) -> None:
         marketplace = json.loads(MARKETPLACE.read_text(encoding="utf-8"))
@@ -150,7 +154,7 @@ class ReleaseContractTests(unittest.TestCase):
         )
         self.assertEqual(result.returncode, 0, result.stderr)
         responses = [json.loads(line) for line in result.stdout.splitlines()]
-        self.assertEqual(responses[0]["result"]["serverInfo"]["version"], "0.2.0")
+        self.assertEqual(responses[0]["result"]["serverInfo"]["version"], "0.2.1")
         self.assertEqual(responses[1]["result"], {})
         names = {
             tool["name"] for tool in responses[2]["result"]["tools"]

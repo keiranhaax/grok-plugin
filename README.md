@@ -1,6 +1,6 @@
 # Grok Advisor for Codex
 
-[![Version](https://img.shields.io/badge/version-0.2.0-2563eb)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-0.2.1-2563eb)](CHANGELOG.md)
 [![Model](https://img.shields.io/badge/model-grok--4.5-111827)](https://x.ai/)
 [![Python](https://img.shields.io/badge/python-3.10%2B-0f766e)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
@@ -148,6 +148,11 @@ Use Grok Advisor to check the Grok 4.5 route. Do not make a model call.
 - exact `grok-4.5` availability;
 - bundled profile hashes, paths, and permissions;
 - API-key-auth disabling, runtime-confined configuration, and integration isolation.
+
+The response includes `minimum_cli_version` and an ordered `readiness_issues`
+array. An empty array means every no-model readiness gate passed. If setup fails
+before later gates can be checked, the array reports only the diagnostic that was
+actually observed.
 
 It never returns account identity, tokens, configuration contents, or session
 IDs.
@@ -331,6 +336,11 @@ Errors use a stable, redacted shape:
     "code": "invalid_structured_output",
     "message": "PLAN_REVISE requires at least one finding."
   },
+  "details": {
+    "failure_stage": "contract_validation",
+    "automatic_retry_performed": false,
+    "manual_retry_allowed": true
+  },
   "requested_model": "grok-4.5",
   "effort": "high"
 }
@@ -429,6 +439,16 @@ grok --version
 Set `GROK_CLI_PATH` before starting Codex when Grok is in a nonstandard
 location.
 
+### Grok CLI version unsupported
+
+Run `grok_status()` and compare `cli_version` with `minimum_cli_version`. If
+`GROK_CLI_PATH` points at an older binary, update or unset it before starting a
+new Codex task. Normal resolution checks `PATH` before `~/.grok/bin/grok`.
+
+Do not delete an older downloaded binary merely because it still exists. Fix the
+active symlink, `PATH`, or `GROK_CLI_PATH`; restart Codex only when its environment
+still pins the old executable.
+
 ### Login or model unavailable
 
 ```sh
@@ -437,6 +457,26 @@ grok models
 ```
 
 The model list must contain the exact `grok-4.5` ID.
+
+Use `readiness_issues` to distinguish `authentication_unavailable` from
+`model_unavailable`. Run `grok login` only for the authentication case; the
+plugin intentionally uses the grok.com login and disables API-key authentication
+inside the isolated route.
+
+### Structured output rejected
+
+`invalid_structured_output` reports `failure_stage` as `json_decode` or
+`contract_validation`. The bridge does not repair the response or retry
+automatically. If Grok participation is required, narrow or clarify the packet
+and make at most one deliberate manual retry; otherwise disclose that the
+cross-check was unavailable and continue from independently verified evidence.
+
+### Status is ready but a call fails
+
+`ready_unverified` proves only that preflight checks passed. A live model request
+can still fail because of service, network, allowance, or response-contract
+errors. Omnisearch and other MCP servers are separate routes and do not affect
+this plugin's readiness result.
 
 ### Route isolation failed
 
@@ -497,6 +537,8 @@ python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
 
 python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py \
   plugins/grok-orchestrator
+
+python3 scripts/release_smoke.py
 ```
 
 The fake CLI suite covers model/effort pinning, role allowlists, schemas,
@@ -505,9 +547,13 @@ integrity, status states, panel independence, prompt cleanup, output limits,
 timeouts, process-tree cleanup, redaction, and MCP protocol behavior without
 using Grok allowance.
 
-Release verification additionally performs an isolated marketplace
-install/reinstall, checks the cached snapshot, exercises stdio discovery, runs
-`grok_status` against the real CLI, and makes one minimal live call.
+`scripts/release_smoke.py` performs a credential-free isolated marketplace
+install/reinstall, checks the cached snapshot, and exercises stdio discovery. It
+does not run `grok_status` against the user's CLI or make a model call.
+
+When end-to-end verification is explicitly authorized, run `grok_status()` in a
+fresh Codex task and then make one minimal model-backed call. The status check is
+allowance-free; the model-backed call consumes Grok allowance.
 
 ## Limitations
 

@@ -51,7 +51,11 @@ if (
     print("--no-subagents cannot be used with --check", file=sys.stderr)
     raise SystemExit(2)
 if normalized_args == ["--version"]:
-    version = "0.2.98-test" if status_mode == "old_version" else "0.2.99-test"
+    version = (
+        "0.2.98-test"
+        if status_mode in {"old_version", "old_version_logged_out"}
+        else "0.2.99-test"
+    )
     print(f"grok {version}")
     raise SystemExit(0)
 if normalized_args == ["--help"]:
@@ -61,8 +65,12 @@ if normalized_args == ["--help"]:
     print("\n".join(flags))
     raise SystemExit(0)
 if normalized_args == ["models"]:
-    if status_mode == "logged_out":
-        print("Not logged in.")
+    if status_mode in {"logged_out", "old_version_logged_out"}:
+        print(
+            "Not logged in.\n\n"
+            "Default model: grok-4.5\n\n"
+            "Available models:\n  * grok-4.5 (default)"
+        )
         raise SystemExit(1)
     if status_mode == "missing_model":
         model = "grok-composer-2.5-fast"
@@ -249,7 +257,10 @@ elif profile == "panel-review.md":
 else:
     structured = None
 
-text = "fake answer" if structured is None else json.dumps(structured)
+if mode == "inner_malformed_structured" and structured is not None:
+    text = "not-json"
+else:
+    text = "fake answer" if structured is None else json.dumps(structured)
 payload = {
     "text": text,
     "thought": "must not escape",
@@ -371,6 +382,8 @@ class GrokMcpTests(unittest.TestCase):
         self.assertIn("--json-schema", args)
         self.assertNotIn("--check", args)
         self.assertIn("self-check", args[args.index("--rules") + 1])
+        self.assertIn("schema-conforming JSON", args[args.index("--rules") + 1])
+        self.assertIn("without Markdown fences", args[args.index("--rules") + 1])
         self.assertEqual(args[args.index("--tools") + 1], "")
         self.assertEqual(args[args.index("--max-turns") + 1], "4")
         self.assertEqual(record["profile"], "plan-review.md")
@@ -412,6 +425,7 @@ class GrokMcpTests(unittest.TestCase):
         self.assertNotIn("web_search", denied.split(","))
         self.assertEqual(record["profile"], "research.md")
         self.assertEqual(record["web_fetch_enabled"], "1")
+        self.assertIn("schema-conforming JSON", args[args.index("--rules") + 1])
         self.assertTrue(response["data"]["sources"][0]["url"].startswith("https://"))
 
         os.environ["FAKE_GROK_MODE"] = "bad_research_url"
@@ -445,6 +459,7 @@ class GrokMcpTests(unittest.TestCase):
         self.assertEqual(args[args.index("--max-turns") + 1], "16")
         self.assertNotIn("--check", args)
         self.assertIn("self-check", args[args.index("--rules") + 1])
+        self.assertIn("schema-conforming JSON", args[args.index("--rules") + 1])
         self.assertEqual(response["data"]["findings"][0]["line"], 42)
 
         os.environ["FAKE_GROK_MODE"] = "bad_workspace_shape"
@@ -490,6 +505,7 @@ class GrokMcpTests(unittest.TestCase):
             self.assertEqual(args[args.index("--tools") + 1], "")
             self.assertNotIn("--check", args)
             self.assertIn("self-check", args[args.index("--rules") + 1])
+            self.assertIn("schema-conforming JSON", args[args.index("--rules") + 1])
             self.assertIn("--no-subagents", args)
 
         for invalid in (True, 1, 4, "2"):
@@ -518,27 +534,37 @@ class GrokMcpTests(unittest.TestCase):
         self.assertEqual(status["route_state"], "ready_unverified")
         self.assertEqual(status["default_model"], "grok-4.5")
         self.assertEqual(status["requested_model"], "grok-4.5")
+        self.assertEqual(status["minimum_cli_version"], "0.2.99")
+        self.assertEqual(status["readiness_issues"], [])
         self.assertEqual(set(status["profiles"]), {"consult", "plan_review", "research", "workspace_review", "panel_review"})
         self.assertFalse(self.record_dir.exists())
 
     def test_status_fails_closed_for_missing_capability_login_or_model(self) -> None:
         cases = {
-            "missing_capability": "--json-schema",
-            "logged_out": None,
-            "missing_model": None,
-            "similar_model": None,
-            "old_version": None,
-            "unsafe_integrations": None,
-            "malformed_inspect": None,
+            "missing_capability": (["cli_capabilities_unavailable"], "--json-schema"),
+            "logged_out": (["authentication_unavailable"], None),
+            "missing_model": (["model_unavailable"], None),
+            "similar_model": (["model_unavailable"], None),
+            "old_version": (["cli_version_unsupported"], None),
+            "unsafe_integrations": (["route_isolation_unavailable"], None),
+            "malformed_inspect": (["route_isolation_unavailable"], None),
         }
-        for status_mode, missing_flag in cases.items():
+        for status_mode, (expected_issues, missing_flag) in cases.items():
             with self.subTest(status_mode=status_mode):
                 os.environ["FAKE_GROK_STATUS_MODE"] = status_mode
                 status = grok_mcp.grok_status()
                 self.assertFalse(status["available"])
                 self.assertEqual(status["route_state"], "unavailable")
+                self.assertEqual(status["readiness_issues"], expected_issues)
                 if missing_flag:
                     self.assertIn(missing_flag, status["missing_capabilities"])
+
+        os.environ["FAKE_GROK_STATUS_MODE"] = "old_version_logged_out"
+        status = grok_mcp.grok_status()
+        self.assertEqual(
+            status["readiness_issues"],
+            ["cli_version_unsupported", "authentication_unavailable"],
+        )
 
     def test_status_tracks_only_truthful_in_memory_route_state(self) -> None:
         self.assertEqual(grok_mcp.grok_status()["route_state"], "ready_unverified")
@@ -550,8 +576,16 @@ class GrokMcpTests(unittest.TestCase):
 
     def test_preflight_is_rechecked_before_model_call(self) -> None:
         os.environ["FAKE_GROK_STATUS_MODE"] = "logged_out"
-        with self.assertRaisesRegex(grok_mcp.GrokBridgeError, "not ready"):
+        with self.assertRaisesRegex(grok_mcp.GrokBridgeError, "not ready") as context:
             grok_mcp._run_grok("consult", "check")
+        self.assertEqual(
+            context.exception.details,
+            {
+                "readiness_issues": ["authentication_unavailable"],
+                "cli_version": "0.2.99",
+                "minimum_cli_version": "0.2.99",
+            },
+        )
         self.assertFalse(self.record_dir.exists())
 
     def test_status_rejects_an_insecure_login_file(self) -> None:
@@ -564,6 +598,36 @@ class GrokMcpTests(unittest.TestCase):
         self.assertFalse(status["available"])
         self.assertEqual(status["route_state"], "unavailable")
         self.assertEqual(status["error"]["code"], "auth_isolation_failed")
+        self.assertEqual(status["readiness_issues"], ["auth_isolation_failed"])
+
+    def test_structured_output_failure_reports_stage_without_retry(self) -> None:
+        expected_common = {
+            "automatic_retry_performed": False,
+            "manual_retry_allowed": True,
+        }
+
+        os.environ["FAKE_GROK_MODE"] = "inner_malformed_structured"
+        with self.assertRaises(grok_mcp.GrokBridgeError) as context:
+            grok_mcp._run_grok("plan_review", "review this plan")
+        self.assertEqual(context.exception.code, "invalid_structured_output")
+        self.assertEqual(
+            context.exception.details,
+            {"failure_stage": "json_decode", **expected_common},
+        )
+        self.assertEqual(len(self.read_records()), 1)
+        self.assertEqual(grok_mcp.grok_status()["route_state"], "ready_unverified")
+
+        self.clear_records()
+        os.environ["FAKE_GROK_MODE"] = "bad_plan_decision"
+        with self.assertRaises(grok_mcp.GrokBridgeError) as context:
+            grok_mcp._run_grok("plan_review", "review this plan")
+        self.assertEqual(context.exception.code, "invalid_structured_output")
+        self.assertEqual(
+            context.exception.details,
+            {"failure_stage": "contract_validation", **expected_common},
+        )
+        self.assertEqual(len(self.read_records()), 1)
+        self.assertEqual(grok_mcp.grok_status()["route_state"], "ready_unverified")
 
     def test_runtime_identity_is_confirmed_only_from_metadata(self) -> None:
         os.environ["FAKE_GROK_MODE"] = "confirmed_route"
@@ -716,7 +780,7 @@ class GrokMcpTests(unittest.TestCase):
 
     def test_mcp_surface_has_six_bounded_tools(self) -> None:
         initialized = grok_mcp.handle_request({"jsonrpc": "2.0", "id": 1, "method": "initialize"})
-        self.assertEqual(initialized["result"]["serverInfo"]["version"], "0.2.0")
+        self.assertEqual(initialized["result"]["serverInfo"]["version"], "0.2.1")
         listed = grok_mcp.handle_request({"jsonrpc": "2.0", "id": 2, "method": "tools/list"})
         tools = listed["result"]["tools"]
         names = {tool["name"] for tool in tools}
@@ -787,6 +851,61 @@ class GrokMcpTests(unittest.TestCase):
         self.assertTrue(extra["result"]["isError"])
         extra_payload = json.loads(extra["result"]["content"][0]["text"])
         self.assertEqual(extra_payload["error"]["code"], "invalid_arguments")
+
+    def test_mcp_serializes_safe_readiness_and_structured_failure_details(self) -> None:
+        os.environ["FAKE_GROK_STATUS_MODE"] = "logged_out"
+        unavailable = grok_mcp.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "tools/call",
+                "params": {
+                    "name": "consult_grok",
+                    "arguments": {"packet": "check"},
+                },
+            }
+        )
+        unavailable_payload = json.loads(
+            unavailable["result"]["content"][0]["text"]
+        )
+        self.assertEqual(unavailable_payload["error"]["code"], "grok_not_ready")
+        self.assertEqual(
+            unavailable_payload["details"],
+            {
+                "readiness_issues": ["authentication_unavailable"],
+                "cli_version": "0.2.99",
+                "minimum_cli_version": "0.2.99",
+            },
+        )
+
+        os.environ["FAKE_GROK_STATUS_MODE"] = "ready"
+        os.environ["FAKE_GROK_MODE"] = "inner_malformed_structured"
+        structured = grok_mcp.handle_request(
+            {
+                "jsonrpc": "2.0",
+                "id": 2,
+                "method": "tools/call",
+                "params": {
+                    "name": "review_plan_with_grok",
+                    "arguments": {"packet": "check"},
+                },
+            }
+        )
+        structured_payload = json.loads(
+            structured["result"]["content"][0]["text"]
+        )
+        self.assertEqual(
+            structured_payload["error"]["code"],
+            "invalid_structured_output",
+        )
+        self.assertEqual(
+            structured_payload["details"],
+            {
+                "failure_stage": "json_decode",
+                "automatic_retry_performed": False,
+                "manual_retry_allowed": True,
+            },
+        )
 
 
 if __name__ == "__main__":
