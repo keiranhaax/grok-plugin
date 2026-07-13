@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Consult Grok 4.5 from Codex for bounded advice, research, and read-only workspace review.",
   "author": {
-    "name": "Keiran Haax",
+    "name": "keiranhaax",
     "url": "https://github.com/keiranhaax"
   },
   "repository": "https://github.com/keiranhaax/grok-plugin",
@@ -20,7 +20,7 @@
     "displayName": "Grok Orchestrator",
     "shortDescription": "Consult Grok 4.5 from Codex",
     "longDescription": "Keep Codex in charge while Grok 4.5 provides high-effort advice, sourced research, and read-only workspace reviews.",
-    "developerName": "Keiran",
+    "developerName": "keiranhaax",
     "category": "Productivity",
     "capabilities": [
       "Grok 4.5 consultation",
