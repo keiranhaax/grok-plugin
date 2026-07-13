@@ -3,7 +3,7 @@ name: grok-orchestrator
 description: Use Grok 4.5 as a bounded, read-only advisor, structured plan gate, web researcher, workspace reviewer, or explicit independent panel while Codex remains the root orchestrator. Use whenever the user explicitly asks for Grok. Proactively make one call only at a complex plan, evidence-heavy research, risky review, or material double-check gate where independent critique could change the result.
 ---
 
-# Grok Orchestrator
+# Grok Advisor
 
 Keep Codex as the root orchestrator. Grok provides untrusted evidence or critique;
 it never owns the task, edits files, runs commands, directs other workers, or makes

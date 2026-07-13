@@ -1,4 +1,4 @@
-# Grok Orchestrator for Codex
+# Grok Advisor for Codex
 
 [![Version](https://img.shields.io/badge/version-0.2.0-2563eb)](CHANGELOG.md)
 [![Model](https://img.shields.io/badge/model-grok--4.5-111827)](https://x.ai/)
@@ -31,18 +31,24 @@ against repository evidence, primary sources, or direct tests.
 
 ```mermaid
 flowchart LR
-    U["User task"] --> C["Codex root orchestrator"]
-    C --> K["Grok Orchestrator skill"]
-    K --> M["Local stdio MCP bridge"]
+    U["User task"] --> C1
+    subgraph CODEX["Codex — root orchestrator"]
+        C1["Frames a bounded packet"]
+        C2["Verifies evidence, decides, implements, and responds"]
+    end
+    C1 --> A["Grok Advisor skill selects one bounded role"]
+    A --> M["Read-only local stdio MCP bridge"]
     M --> P["Fresh isolated Grok CLI process"]
     P --> G["grok-4.5 · high effort"]
-    G --> J["Bounded JSON envelope"]
-    J --> C
-    C --> V["Codex verifies, decides, and delivers"]
+    G --> J["Untrusted advice in a validated, redacted envelope"]
+    J --> C2
+    C2 --> U
 ```
 
-For every call, Codex builds a self-contained packet. The bridge performs a
-no-model preflight, creates a fresh private runtime, launches Grok with the
+The two stages inside the Codex boundary are the same root orchestrator, before
+and after the advisory call. For every call, Codex builds a self-contained
+packet. The bridge performs a no-model preflight, creates a fresh private
+runtime, launches Grok with the
 selected role, validates the result, removes thoughts and session metadata, and
 returns a stable envelope. No Grok session is resumed between calls.
 
@@ -118,7 +124,7 @@ when participation is required.
 ### Check readiness without spending a model call
 
 ```text
-Use Grok Orchestrator to check the Grok 4.5 route. Do not make a model call.
+Use Grok Advisor to check the Grok 4.5 route. Do not make a model call.
 ```
 
 `grok_status()` checks:
@@ -456,7 +462,7 @@ plugins/grok-orchestrator/
 ├── .mcp.json                                MCP launch configuration
 ├── scripts/grok_mcp.py                      Dependency-free stdio bridge
 ├── scripts/agent_profiles/                  Five pinned Grok role profiles
-├── skills/grok-orchestrator/SKILL.md         Codex orchestration policy
+├── skills/grok-orchestrator/SKILL.md         Codex advisor delegation policy
 └── tests/test_grok_mcp.py                   Fake-CLI unit and protocol tests
 tests/test_release.py                        Package and release contract tests
 ```

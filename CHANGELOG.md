@@ -1,6 +1,15 @@
 # Changelog
 
-All notable changes to Grok Orchestrator are documented here.
+All notable changes to Grok Advisor are documented here.
+
+## Unreleased
+
+### Changed
+
+- Renamed the user-facing product from Grok Orchestrator to Grok Advisor while
+  retaining the stable `grok-orchestrator` package, skill, and MCP identifiers.
+- Clarified the architecture diagram so Codex visibly frames every delegation,
+  receives untrusted Grok advice, verifies it, and remains the sole orchestrator.
 
 ## 0.2.0 - 2026-07-13
 

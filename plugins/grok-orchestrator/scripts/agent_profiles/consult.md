@@ -1,6 +1,6 @@
 ---
 name: grok-orchestrator-consult
-description: Tool-free advisor for the Grok Orchestrator Codex plugin.
+description: Tool-free advisor for the Grok Advisor Codex plugin.
 prompt_mode: full
 model: grok-4.5
 permission_mode: dontAsk

@@ -1,6 +1,6 @@
 ---
 name: grok-orchestrator-research
-description: Web-only researcher for the Grok Orchestrator Codex plugin.
+description: Web-only researcher for the Grok Advisor Codex plugin.
 prompt_mode: full
 model: grok-4.5
 permission_mode: dontAsk

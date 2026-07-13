@@ -40,11 +40,11 @@ MAX_AUTH_BYTES = 2 * 1024 * 1024
 
 AGENT_PROFILE_ROOT = Path(__file__).resolve().parent / "agent_profiles"
 PROFILE_HASHES = {
-    "consult": "187ade02124915a2a911b5ae9ecf27367353d6a84a0be9aacb32ededf875368b",
-    "panel_review": "183832d8bb5c51361234970a3077a5a10eee8a9415becdde31850296ee268357",
-    "plan_review": "191959f4f940d093b4a1d10cb2dbcabe291e145f21b562210db1e9b7d844db6e",
-    "research": "e2dec92b12dd852f575aa0774f398de49f2072d25343a02d7b936940e9bd1f87",
-    "workspace_review": "d3b82d0e8a37a94cdd0687db2dc4dd493eedadf89b2d60e82c77c9984195f1f4",
+    "consult": "8f12607f700a001769bcd5e9a4575464a72d98bec04428edbc4fccbaf3def603",
+    "panel_review": "8dba408f57afe68f93a3611ebf43c834ee07e92bc76f143c164f6f255c4e1bc3",
+    "plan_review": "251fc54f514f33c7d278a330752188836c433c657374bbc295fef8d1234e7d01",
+    "research": "533a9cad75891332fdd27a44c6c39d53404ecec4b9a36da54a37f19a5e179085",
+    "workspace_review": "e00e2802f0891d726f6fac0c1b0b4bac345d87b546dee64b50cea4efd858723c",
 }
 
 PROFILE_FILES = {

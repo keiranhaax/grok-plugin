@@ -1,7 +1,7 @@
 {
   "name": "grok-orchestrator",
   "version": "0.2.0",
-  "description": "Orchestrate structured, read-only Grok 4.5 advice, research, plan gates, panels, and workspace reviews from Codex.",
+  "description": "Use Grok 4.5 as a structured, read-only advisor for plan gates, research, panels, and workspace reviews in Codex.",
   "author": {
     "name": "Keiran Haax",
     "url": "https://github.com/keiranhaax"
@@ -17,9 +17,9 @@
   "skills": "./skills/",
   "mcpServers": "./.mcp.json",
   "interface": {
-    "displayName": "Grok Orchestrator",
+    "displayName": "Grok Advisor",
     "shortDescription": "Bounded Grok 4.5 review for Codex",
-    "longDescription": "Keep Codex in charge while Grok 4.5 provides high-effort structured plan gates, sourced research, independent panels, and read-only workspace reviews.",
+    "longDescription": "Keep Codex as the root orchestrator while Grok 4.5 acts as a high-effort advisor for structured plan gates, sourced research, independent panels, and read-only workspace reviews.",
     "developerName": "Keiran Haax",
     "category": "Productivity",
     "capabilities": [

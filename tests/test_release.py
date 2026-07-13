@@ -31,6 +31,7 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertEqual(manifest["version"], "0.2.0")
         self.assertEqual(manifest["author"]["name"], "Keiran Haax")
         self.assertEqual(manifest["interface"]["developerName"], "Keiran Haax")
+        self.assertEqual(manifest["interface"]["displayName"], "Grok Advisor")
         self.assertEqual(manifest["interface"]["category"], "Productivity")
         self.assertEqual(len(manifest["interface"]["defaultPrompt"]), 3)
 
@@ -43,6 +44,13 @@ class ReleaseContractTests(unittest.TestCase):
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
         self.assertIn("version-0.2.0", readme)
+        self.assertTrue(readme.startswith("# Grok Advisor for Codex\n"))
+        self.assertIn('subgraph CODEX["Codex — root orchestrator"]', readme)
+        self.assertIn('A["Grok Advisor skill selects one bounded role"]', readme)
+        self.assertIn('G["grok-4.5 · high effort"]', readme)
+        self.assertIn("J --> C2", readme)
+        self.assertIn("C2 --> U", readme)
+        self.assertIn("## Unreleased", changelog)
         self.assertIn("## 0.2.0", changelog)
 
     def test_marketplace_and_mcp_launch_contract(self) -> None:

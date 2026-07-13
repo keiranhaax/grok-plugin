@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_NAME = "grok-orchestrator"
 MARKETPLACE_NAME = "grok-plugin"
 VERSION = "0.2.0"
+DISPLAY_NAME = "Grok Advisor"
 EXPECTED_TOOLS = {
     "consult_grok",
     "review_plan_with_grok",
@@ -57,6 +58,13 @@ def cached_plugin(codex_home: Path) -> Path:
     if len(matches) != 1:
         raise RuntimeError(f"Expected one cached {PLUGIN_NAME} {VERSION}, found {matches}")
     return matches[0]
+
+
+def verify_cached_metadata(plugin: Path) -> None:
+    manifest_path = plugin / ".codex-plugin" / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("interface", {}).get("displayName") != DISPLAY_NAME:
+        raise RuntimeError("Cached plugin did not expose the Grok Advisor name.")
 
 
 def discover_tools(plugin: Path) -> set[str]:
@@ -109,6 +117,7 @@ def main() -> int:
         selector = f"{PLUGIN_NAME}@{MARKETPLACE_NAME}"
         run([codex, "plugin", "add", selector, "--json"], env)
         plugin = cached_plugin(codex_home)
+        verify_cached_metadata(plugin)
         if not (plugin / "skills" / "grok-orchestrator" / "SKILL.md").is_file():
             raise RuntimeError("Cached plugin is missing the orchestration skill.")
         if discover_tools(plugin) != EXPECTED_TOOLS:
@@ -117,6 +126,7 @@ def main() -> int:
         run([codex, "plugin", "remove", selector, "--json"], env)
         run([codex, "plugin", "add", selector, "--json"], env)
         reinstalled = cached_plugin(codex_home)
+        verify_cached_metadata(reinstalled)
         if discover_tools(reinstalled) != EXPECTED_TOOLS:
             raise RuntimeError("Reinstalled plugin tool discovery failed.")
 

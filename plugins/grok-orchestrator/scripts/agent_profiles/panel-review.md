@@ -1,6 +1,6 @@
 ---
 name: grok-orchestrator-panel-review
-description: Tool-free independent panel reviewer for the Grok Orchestrator Codex plugin.
+description: Tool-free independent panel reviewer for the Grok Advisor Codex plugin.
 prompt_mode: full
 model: grok-4.5
 permission_mode: dontAsk
