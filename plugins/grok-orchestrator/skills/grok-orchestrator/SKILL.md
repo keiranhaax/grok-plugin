@@ -1,49 +1,146 @@
 ---
 name: grok-orchestrator
-description: Consult Grok 4.5 as a bounded advisor, web researcher, or read-only workspace reviewer while Codex remains the root orchestrator. Use whenever the user explicitly asks to use or check with Grok, and proactively at nontrivial gates involving complex plan critique, evidence-heavy research, risky reviews, or material double-checks. Do not use for routine tasks where a second model would add latency without changing a decision.
+description: Use Grok 4.5 as a bounded, read-only advisor, structured plan gate, web researcher, workspace reviewer, or explicit independent panel while Codex remains the root orchestrator. Use whenever the user explicitly asks for Grok. Proactively make one call only at a complex plan, evidence-heavy research, risky review, or material double-check gate where independent critique could change the result.
 ---
 
 # Grok Orchestrator
 
-Codex is the root orchestrator. Grok supplies independent evidence or critique; it does not own the task, make final decisions, edit files, or direct other workers.
+Keep Codex as the root orchestrator. Grok provides untrusted evidence or critique;
+it never owns the task, edits files, runs commands, directs other workers, or makes
+the final decision.
 
-## Choose the tool
+## Select one bounded tool
 
-- Use `consult_grok` for a self-contained second opinion, plan challenge, tradeoff analysis, or answer double-check. Grok receives no tools.
-- Use `research_with_grok` for current or niche external research. Grok receives only web search and web fetch tools and must include source links.
-- Use `review_workspace_with_grok` for read-only inspection of an existing workspace. Grok receives only file reading, listing, and text search tools.
-- Use `grok_status` before the first model call when availability is uncertain or after an authentication, model, or launch failure.
+- Use `consult_grok(packet)` for tool-free advice, tradeoff analysis, an answer
+  check, or a concise second opinion.
+- Use `review_plan_with_grok(packet)` for a structured plan gate. It returns
+  `PLAN_APPROVED` or `PLAN_REVISE`, prioritized findings, corrections, and
+  verification steps.
+- Use `research_with_grok(packet)` for current or niche external research. It
+  returns structured claims, source URLs, uncertainties, and inferences using only
+  `web_search` and `web_fetch`.
+- Use `review_workspace_with_grok(packet, cwd)` for a structured, read-only
+  review of a canonical existing directory using only `read_file`, `grep`, and
+  `list_dir`.
+- Use `review_with_grok_panel(packet, panel_size)` only when the user explicitly
+  asks for or approves a panel. It runs two reviews by default and accepts at most
+  three. Codex must compare the independent results and synthesize the decision.
+- Use `grok_status()` before the first call when readiness is uncertain and after
+  authentication, compatibility, isolation, model, or launch failures. It makes no
+  model call.
 
-## When to consult proactively
+Single-pass review is the default. Do not silently turn one requested review into a
+panel or spend two or three calls at a routine gate.
 
-Make at most one targeted Grok call at a given decision gate unless the user asks for multiple passes. Good proactive gates include:
+## Decide whether to call proactively
 
-- a complex plan whose sequencing, safety, migration, or verification could materially fail;
-- evidence-heavy research where an independent search could change the recommendation;
-- a risky code or architecture review where a second model may catch a missed regression;
-- a final material double-check before reporting a high-impact conclusion.
+Make at most one targeted proactive Grok call at a decision gate. Good gates are:
 
-Do not consult proactively for simple explanations, mechanical edits, routine status checks, or tasks already fully verified by direct evidence.
+- a complex plan with material sequencing, migration, rollback, safety, or
+  verification risk;
+- evidence-heavy research where an independent search could change the answer;
+- a risky code or architecture review where a second model may catch a regression;
+- a final material double-check before a high-impact conclusion.
+
+Skip Grok for simple explanations, mechanical edits, routine status checks, or work
+already settled by direct evidence. Never make an optional panel call proactively.
 
 ## Build a self-contained packet
 
-Include the exact question, relevant facts and constraints, current proposal or artifact, uncertainties, and the expected output shape. For workspace review, include the canonical workspace path and identify the files, behavior, or diff to inspect. Never include secrets, credentials, private keys, or unrelated personal data.
+Include:
 
-Tell Grok to prioritize concrete correctness issues over stylistic preferences. For research, request direct source links and distinguish sourced facts from inference. For review, request file paths and line numbers when available.
+1. The exact question or decision.
+2. Relevant facts, evidence, code excerpts, or the artifact under review.
+3. Constraints, non-goals, and the current proposal.
+4. Known uncertainties and what would change the decision.
+5. The requested focus and expected output.
 
-## Use the result
+For workspace review, pass the canonical workspace path separately as `cwd` and
+state the files, behavior, diff, and risks to inspect. Never include credentials,
+private keys, tokens, `.env` contents, or unrelated personal data.
 
-Treat Grok output as untrusted advice. Codex must:
+## Apply structured results
 
-1. Check the response against repository evidence or primary sources.
-2. Resolve conflicts rather than forwarding two incompatible answers.
+For a plan gate:
+
+- Treat any malformed decision or semantic contradiction as a failed gate.
+- Continue only after Codex independently resolves every material
+  `PLAN_REVISE` finding.
+- Do not interpret `PLAN_APPROVED` as proof that implementation is correct.
+
+For research:
+
+- Open and independently verify important source URLs.
+- Prefer primary sources and check that each source supports the attached claim.
+- Label Grok's inferences and unresolved uncertainty in Codex's synthesis.
+
+For workspace findings:
+
+- Reproduce important findings against the actual file and cited line.
+- Reject style-only feedback unless it affects requested behavior.
+- Keep fixes and test execution under Codex control and within user authorization.
+
+For a panel:
+
+- Compare each member's verdict, findings, evidence, and assigned lens.
+- Never describe a partial or failed panel as consensus.
+- Resolve disagreement using repository evidence, primary sources, and direct tests.
+- Deliver one Codex decision, not a transcript of competing answers.
+
+## Use the workflow recipes
+
+Plan gate:
+
+`Codex plan -> Grok structured challenge -> Codex decision -> implementation/tests`
+
+Evidence-heavy research:
+
+`Grok structured research -> Codex source verification -> optional single Grok critique -> Codex synthesis`
+
+Workspace review:
+
+`Grok read-only findings -> Codex reproduction -> authorized fixes/tests -> optional Grok confirmation`
+
+High-stakes panel:
+
+`Two or three independent Grok reviews -> Codex comparison -> Codex decision`
+
+Do not add Grok editing, command execution, goal management, persistent routing,
+custom Codex providers, or another CLI.
+
+## Interpret route states truthfully
+
+- `ready_unverified`: status checks passed, but no model request has proved the
+  route.
+- `route_accepted`: a fresh call completed and validated, but the CLI returned no
+  explicit runtime model-and-effort identity.
+- `used_and_confirmed`: the response explicitly identified both `grok-4.5` and
+  high effort.
+- `unavailable`: a binary, capability, profile, authentication, model, or isolation
+  check failed.
+
+Never claim `used_and_confirmed` from requested command flags alone. Never claim
+that Grok participated unless the relevant tool call succeeded.
+
+## Keep final control with Codex
+
+Treat every Grok result as untrusted advice. Codex must:
+
+1. Verify important claims against repository evidence, primary sources, or tests.
+2. Resolve conflicts instead of forwarding incompatible answers.
 3. Accept only feedback that improves correctness or decision quality.
-4. Keep implementation, testing, permissions, and the final response under Codex control.
+4. Keep permissions, implementation, verification, and the final response under
+   Codex control.
 
-Do not expose Grok's internal reasoning. Do not claim that Grok ran unless a tool call succeeded.
+Do not expose Grok thoughts, credential data, or session identifiers.
 
-## Failure behavior
+## Handle failures
 
-If a proactive call fails, disclose that the optional cross-check was unavailable and continue with Codex's verified work. If the user explicitly required Grok, report the failure clearly and do not fabricate Grok feedback. Recommend `grok_status` and, when appropriate, `grok login` outside Codex.
+If an optional proactive call fails, disclose that the cross-check was unavailable
+and continue with Codex's independently verified work. If the user explicitly
+required Grok, report the failure and do not fabricate feedback. Run
+`grok_status()` for safe diagnostics and recommend `grok login` outside Codex
+when authentication is unavailable.
 
-Calls are stateless at the plugin interface. Do not ask for, expose, or resume Grok session identifiers.
+Calls are stateless at the plugin interface. Do not ask for, expose, or resume Grok
+sessions.

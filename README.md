@@ -1,88 +1,92 @@
 # Grok Orchestrator for Codex
 
-[![Version](https://img.shields.io/badge/version-0.1.0-2563eb)](https://github.com/keiranhaax/grok-plugin/tree/v0.1.0)
+[![Version](https://img.shields.io/badge/version-0.2.0-2563eb)](CHANGELOG.md)
 [![Model](https://img.shields.io/badge/model-grok--4.5-111827)](https://x.ai/)
+[![Python](https://img.shields.io/badge/python-3.10%2B-0f766e)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-MIT-16a34a)](LICENSE)
 
-Use Grok 4.5 as a bounded advisor, web researcher, or read-only workspace
-reviewer inside Codex. Codex remains the root orchestrator: it owns the plan,
-decides what feedback to accept, implements changes, verifies the result, and
-answers the user.
+Use Grok 4.5 as a bounded, read-only advisor inside Codex. Codex remains the
+root orchestrator: it frames the handoff, decides what feedback to accept,
+implements authorized changes, runs verification, and answers the user.
 
-The plugin connects Codex to an already authenticated local Grok CLI. It does
-not require an xAI API key in Codex and does not copy or expose Grok
-credentials.
+Version 0.2 adds structured plan gates, schema-validated research and workspace
+findings, an opt-in independent review panel, truthful route states, and a more
+isolated Grok runtime. The plugin remains Grok-only and does not add an executor,
+another model CLI, global routing changes, custom Codex providers, or persistent
+Grok configuration.
 
-## Why use it?
+## What it is good for
 
-- Challenge a complex plan with an independent model before implementation.
-- Run a second web-research pass and compare sources.
-- Ask Grok to inspect a workspace without granting write or shell tools.
-- Double-check a material technical conclusion before delivery.
-- Keep one orchestrator in charge instead of creating competing agent loops.
+- Challenge a complex plan before implementation.
+- Require a fail-closed `PLAN_APPROVED` or `PLAN_REVISE` decision.
+- Run current web research with claims tied to direct source URLs.
+- Inspect a repository without giving Grok edit or shell tools.
+- Compare two or three fresh, independent reviews for a high-stakes decision.
+- Double-check a material conclusion while keeping one orchestrator in charge.
 
-Grok is intentionally advisory. Its output is treated as untrusted input that
-Codex must verify against repository evidence or primary sources.
+Grok output is always untrusted advice. Codex must verify important claims
+against repository evidence, primary sources, or direct tests.
 
-## How it works
+## Architecture
 
 ```mermaid
 flowchart LR
     U["User task"] --> C["Codex root orchestrator"]
-    C --> S["Grok Orchestrator skill"]
-    S --> M["Local stdio MCP bridge"]
-    M --> G["Fresh Grok CLI process<br/>grok-4.5 · high effort"]
-    G --> R["Bounded JSON response"]
-    R --> C
-    C --> V["Codex verifies and delivers"]
+    C --> K["Grok Orchestrator skill"]
+    K --> M["Local stdio MCP bridge"]
+    M --> P["Fresh isolated Grok CLI process"]
+    P --> G["grok-4.5 · high effort"]
+    G --> J["Bounded JSON envelope"]
+    J --> C
+    C --> V["Codex verifies, decides, and delivers"]
 ```
 
-1. Codex identifies a useful consultation, research, or review gate.
-2. Codex creates a self-contained packet with the task, constraints, relevant
-   evidence, uncertainties, and expected output.
-3. The local MCP bridge starts a fresh Grok process pinned to `grok-4.5` with
-   `high` reasoning effort.
-4. The selected role receives only its approved tools.
-5. The bridge removes internal reasoning and session identifiers and returns a
-   stable JSON envelope.
-6. Codex checks the response, resolves conflicts, and keeps final control.
+For every call, Codex builds a self-contained packet. The bridge performs a
+no-model preflight, creates a fresh private runtime, launches Grok with the
+selected role, validates the result, removes thoughts and session metadata, and
+returns a stable envelope. No Grok session is resumed between calls.
 
-There is no second orchestrator and no Grok-to-Codex session handoff. Every
-request is independent at the plugin interface.
+The panel launches each member as a separate process in parallel. Members do
+not see peer output; Codex alone compares and synthesizes their reviews.
 
-## Tool modes
+## Tools
 
-| Tool | Purpose | Grok tool access | Working directory |
+| Tool | Use | Grok access | Output |
 | --- | --- | --- | --- |
-| `consult_grok(packet)` | Plan critique, tradeoff analysis, second opinions, answer checks | None | Temporary empty directory |
-| `research_with_grok(packet)` | Current or niche web research with source links | `web_search`, `web_fetch` | Temporary empty directory |
-| `review_workspace_with_grok(packet, cwd)` | Read-only code, architecture, security, and test review | `read_file`, `grep`, `list_dir` | Canonical existing workspace |
-| `grok_status()` | CLI, login, and exact model diagnostics | No model call | Not applicable |
+| `consult_grok(packet)` | Second opinion, tradeoffs, answer check | No tools | Prose |
+| `review_plan_with_grok(packet)` | Fail-closed implementation-plan gate | No tools | Decision, findings, corrections, verification |
+| `research_with_grok(packet)` | Current or niche external research | `web_search`, `web_fetch` | Claims, sources, uncertainties, inferences |
+| `review_workspace_with_grok(packet, cwd)` | Code, architecture, security, or test review | `read_file`, `grep`, `list_dir` | Severity-ranked findings and recommended tests |
+| `review_with_grok_panel(packet, panel_size=2)` | High-stakes independent review | No tools; 2–3 fresh calls | Ordered member reviews for Codex synthesis |
+| `grok_status()` | Compatibility, login, model, profile, and isolation diagnostics | No model call | Readiness and truthful route state |
 
-The plugin does not expose an executor tool. Grok cannot edit files, run shell
-commands, change Codex Goals, direct other workers, or deliver the final answer.
+Single-pass consultation is the default. The panel is opt-in and is capped at
+three calls.
 
 ## Requirements
 
 - Codex with plugin marketplace support
-- Python 3.10 or newer; no third-party Python packages are required
-- The Grok CLI available through one of:
-  - `GROK_CLI_PATH`
-  - the current `PATH`
-  - `~/.local/bin/grok`
-  - `~/.grok/bin/grok`
-  - `/opt/homebrew/bin/grok`
-  - `/usr/local/bin/grok`
-- A Grok CLI login with the exact `grok-4.5` model available
+- Python 3.10 or newer; no third-party Python packages
+- Grok CLI 0.2.99 or newer
+- A local grok.com login that advertises the exact `grok-4.5` model
 
-Check the Grok CLI before installing:
+The bridge resolves the Grok executable in this order:
+
+1. `GROK_CLI_PATH`
+2. `PATH`
+3. `~/.local/bin/grok`
+4. `~/.grok/bin/grok`
+5. `/opt/homebrew/bin/grok`
+6. `/usr/local/bin/grok`
+
+Check the CLI before installation:
 
 ```sh
 grok --version
 grok models
 ```
 
-If needed, authenticate outside Codex:
+Authenticate outside Codex if needed:
 
 ```sh
 grok login
@@ -90,208 +94,309 @@ grok login
 
 ## Installation
 
-Add the GitHub repository as a Codex marketplace, then install the plugin:
+Add this repository as a Codex marketplace and install the plugin:
 
 ```sh
 codex plugin marketplace add keiranhaax/grok-plugin
 codex plugin add grok-orchestrator@grok-plugin
 ```
 
-Start a new Codex task after installation. Skills and MCP tools are loaded when
-the task starts, so an existing task may not see the newly installed plugin.
+Start a new Codex task after installation. Plugin skills and MCP tools are
+discovered when a task starts, so an already-open task may not expose them.
 
-Confirm the installation:
+Confirm the installed snapshot:
 
 ```sh
-codex plugin list
-```
-
-The installed entry should include:
-
-```text
-grok-orchestrator@grok-plugin
+codex plugin list --json
 ```
 
 ## Usage
 
-You normally do not call the MCP functions yourself. Ask Codex in natural
-language and mention Grok explicitly when you require it.
+You normally invoke the plugin in natural language. Mention Grok explicitly
+when participation is required.
 
-### Check availability
-
-```text
-Use Grok Orchestrator to check whether Grok 4.5 is ready. Do not make a model call.
-```
-
-This uses `grok_status()` to inspect the binary, CLI version, login state, and
-exact `grok-4.5` availability.
-
-### Challenge a plan
+### Check readiness without spending a model call
 
 ```text
-Ask Grok 4.5 to challenge this migration plan. Focus on unsafe sequencing,
-rollback gaps, data-loss risks, and missing verification. Codex should decide
-which feedback to accept.
-
-<paste the complete plan and constraints>
+Use Grok Orchestrator to check the Grok 4.5 route. Do not make a model call.
 ```
 
-This uses `consult_grok`. Grok receives the supplied packet and no tools.
+`grok_status()` checks:
 
-### Get a second opinion
+- executable path and strict CLI version parsing;
+- required flags, including a separate hidden `--no-auto-update` probe;
+- grok.com authentication state;
+- exact `grok-4.5` availability;
+- bundled profile hashes, paths, and permissions;
+- API-key-auth disabling, runtime-confined configuration, and integration isolation.
+
+It never returns account identity, tokens, configuration contents, or session
+IDs.
+
+### Gate a plan
 
 ```text
-Use Grok as an independent advisor. Compare these two architecture options,
-identify the deciding tradeoffs, and recommend what evidence Codex should verify.
+Use the structured Grok plan gate on this migration plan. Return
+PLAN_APPROVED only if there are no material correctness, rollback, safety,
+sequencing, or verification gaps. Codex must resolve every PLAN_REVISE finding.
 
-<include the options, constraints, and known evidence>
+<complete plan, constraints, and evidence>
 ```
 
-### Research a current topic
+The result has this shape:
+
+```json
+{
+  "decision": "PLAN_REVISE",
+  "summary": "A material rollback gap remains.",
+  "findings": [
+    {
+      "priority": "high",
+      "title": "Rollback trigger is undefined",
+      "problem": "The plan does not say when to abort.",
+      "correction": "Define a measurable threshold and recovery action."
+    }
+  ],
+  "verification_steps": [
+    "Exercise rollback in a disposable environment."
+  ]
+}
+```
+
+The bridge rejects unknown decisions, contradictory approvals, revisions with
+no findings, missing verification, and incorrectly prioritized findings.
+
+### Get a tool-free second opinion
 
 ```text
-Research this with Grok 4.5. Use primary sources where possible, include direct
-links for factual claims, separate facts from inference, and report uncertainty.
+Ask Grok 4.5 for one independent second opinion on these architecture options.
+Identify the deciding tradeoffs and what Codex should verify. Do not use tools.
 
-Question: <your research question>
+<options, constraints, and known evidence>
 ```
 
-This uses `research_with_grok`. Grok receives only web search and fetch tools.
-Codex must independently check important claims before presenting them as fact.
+### Research with sources
+
+```text
+Research this with Grok 4.5. Prefer primary sources. Return claims tied to
+direct source URLs, plus uncertainties and clearly separated inferences.
+
+Question: <complete research question>
+```
+
+The bridge enforces `http` or `https` links without embedded credentials,
+requires every claim URL to appear in the source catalog, and rejects duplicate
+or malformed sources. Codex must still open and verify material links.
 
 ### Review a workspace
 
 ```text
-Have Grok review /absolute/path/to/project for correctness regressions, security
-issues, data-integrity risks, and missing tests. Require file paths and line
-numbers. Do not edit anything.
+Have Grok review /absolute/path/to/project for correctness regressions,
+security issues, data-integrity risks, and missing tests. Require evidenced,
+severity-ranked findings with relative file paths and line numbers. Do not edit.
 ```
 
-This uses `review_workspace_with_grok`. The directory must already exist and is
-resolved to a canonical path before Grok starts.
+The workspace must already exist and is canonicalized before launch. Finding
+paths must remain inside that directory. If the project activates a Grok
+configuration layer, hook, plugin, or MCP server that the bridge cannot
+isolate, the call fails closed.
 
-### Run a final material double-check
+File contents inspected by Grok are sent to the Grok service for inference.
+Scope proprietary or sensitive repositories deliberately.
+
+### Run an explicit panel
 
 ```text
-Before delivering, ask Grok to independently check the following conclusion for
-material errors. Then verify any disagreement yourself and return one resolved
-answer, not two conflicting opinions.
+Run a three-member Grok panel on this high-stakes decision. Keep each review
+independent, then have Codex compare the findings, verify disputed claims, and
+return one resolved recommendation.
 
-<conclusion and supporting evidence>
+<decision packet and evidence>
 ```
 
-## Recommended workflows
+Panel members use separate lenses:
 
-### Plan review gate
+1. risk and failure modes;
+2. alternatives and counterarguments;
+3. evidence and verification.
+
+If any member fails, the bridge returns `panel_incomplete`; it never labels a
+partial set of reviews as consensus.
+
+## Workflow recipes
+
+### Plan gate
 
 ```text
-Codex creates plan
-    → Grok challenges gaps and risks
-    → Codex accepts or rejects each material point
-    → Codex implements and verifies
+Codex plan
+  → Grok structured challenge
+  → Codex accepts or rejects each material point
+  → Codex implements and verifies
 ```
 
 ### Evidence-heavy research
 
 ```text
-Codex frames the question
-    → Grok performs a bounded web search
-    → Codex opens and verifies primary sources
-    → Codex resolves conflicts and synthesizes
+Grok structured research
+  → Codex opens and verifies primary sources
+  → optional single Grok final critique
+  → Codex resolves conflicts and synthesizes
 ```
 
-### Risky workspace review
+### Workspace review
 
 ```text
-Codex identifies review scope
-    → Grok performs read-only inspection
-    → Codex reproduces each important finding
-    → Codex fixes and tests only when authorized
+Grok read-only findings
+  → Codex reproduces findings
+  → Codex makes authorized fixes and runs tests
+  → optional Grok confirmation
 ```
 
-By default, the skill makes at most one proactive Grok call at a decision gate.
-Multiple passes should be explicitly requested because they increase latency and
-consume more Grok allowance.
+### High-stakes panel
 
-## Writing a good packet
+```text
+Two or three independent Grok reviews
+  → Codex compares evidence and disagreement
+  → Codex makes the final decision
+```
 
-Grok calls are stateless, so the packet must contain everything needed to answer
-the question. Include:
+## Writing a useful packet
+
+Each call is stateless. Include:
 
 1. The exact question or decision.
-2. Relevant facts, code excerpts, or the artifact being reviewed.
+2. Relevant facts, code excerpts, links, or the artifact being reviewed.
 3. Constraints and non-goals.
-4. Your current proposal or conclusion.
-5. Known uncertainties and what would change the decision.
-6. The expected output format, such as prioritized findings or source links.
+4. The current proposal or conclusion.
+5. Known uncertainty and what would change the decision.
+6. The requested focus and output.
 
 Do not include credentials, private keys, tokens, `.env` contents, or unrelated
 personal data.
 
-## Response contract
+## Response envelope
 
-Successful model calls return a JSON envelope like:
+Every successful model call preserves a string `text` field. Structured modes
+also return parsed `data`:
 
 ```json
 {
   "ok": true,
-  "mode": "consult",
-  "text": "Grok's response text",
+  "mode": "plan_review",
+  "text": "{\"decision\":\"PLAN_APPROVED\",\"findings\":[],\"summary\":\"The plan is bounded and verifiable.\",\"verification_steps\":[\"Run the release checks before push.\"]}",
+  "data": {
+    "decision": "PLAN_APPROVED",
+    "summary": "The plan is bounded and verifiable.",
+    "findings": [],
+    "verification_steps": [
+      "Run the release checks before push."
+    ]
+  },
   "requested_model": "grok-4.5",
   "effort": "high",
-  "stop_reason": "EndTurn"
+  "stop_reason": "EndTurn",
+  "route_state": "route_accepted",
+  "runtime_model_confirmed": false,
+  "runtime_effort_confirmed": false
 }
 ```
 
-Failures return a stable error shape:
+Errors use a stable, redacted shape:
 
 ```json
 {
   "ok": false,
+  "mode": "plan_review",
+  "text": null,
   "error": {
-    "code": "grok_failed",
-    "message": "Redacted diagnostic"
+    "code": "invalid_structured_output",
+    "message": "PLAN_REVISE requires at least one finding."
   },
   "requested_model": "grok-4.5",
   "effort": "high"
 }
 ```
 
-The bridge does not return Grok thoughts, credentials, or session identifiers.
-Diagnostics redact prompt contents and common bearer-token, API-key, secret,
-password, session-ID, and request-ID patterns.
+The bridge never returns Grok thoughts, credential data, or session IDs.
 
-## Security and privacy boundaries
+## Truthful route states
 
-Every model call uses:
+| State | Meaning |
+| --- | --- |
+| `ready_unverified` | All no-model checks passed, but no request has confirmed the runtime route |
+| `route_accepted` | A fresh response completed and validated, but the CLI did not emit both runtime model and effort metadata |
+| `used_and_confirmed` | Response metadata explicitly matched `grok-4.5` and high effort |
+| `unavailable` | Binary, capability, profile, authentication, model, or isolation checks failed |
 
-- the exact `grok-4.5` model;
-- `high` reasoning effort;
-- the `strict` Grok OS sandbox;
-- `dontAsk` permission mode;
-- a mode-specific tool allowlist and denylist;
-- `--no-memory` and no session resumption;
-- no `--yolo` or bypass-permissions mode;
-- no automatic CLI update;
-- a mode-`0600` temporary prompt file deleted in a `finally` cleanup path;
-- a 600-second Grok process timeout and 900-second Codex MCP tool timeout.
+Requested flags alone never produce `used_and_confirmed`. The last successful
+state exists only in MCP process memory and is not persisted.
 
-The workspace reviewer is read-only at the tool boundary, but file content that
-Grok reads is sent to the Grok service for inference. Review the packet and
-workspace scope before invoking it on proprietary or sensitive code.
+## Security boundaries
 
-The plugin is stateless at its interface. The Grok CLI may still maintain its
-normal private cache or session files under `GROK_HOME` or `~/.grok`.
+Every model process uses:
+
+- exact `grok-4.5` and `high` effort flags;
+- `strict` OS sandbox and `dontAsk` permission mode;
+- `--no-memory`, `--no-subagents`, `--no-plan`, and no session resume;
+- role-specific `--max-turns`, tool allowlists, comprehensive built-in
+  denylists, and permission deny rules;
+- one bounded inline self-check for plan, workspace, and panel reviews;
+- no `--yolo`, bypass-permission mode, editing, command execution, or
+  automatic update;
+- a mode-`0600` prompt file whose path—not content—appears in process
+  arguments;
+- 2 MiB stdout and 256 KiB stderr ceilings;
+- a 600-second process deadline with full process-group termination;
+- cooperative SIGTERM/SIGINT cancellation that removes active Grok children,
+  prompt files, and temporary credential/runtime data;
+- a 900-second Codex MCP tool timeout.
+
+The bridge constructs a minimal child environment. It removes xAI/Grok API
+keys, custom model-list and inference endpoints, WebSocket routes, external
+auth commands, and fetch proxies. It disables API-key authentication, memory,
+subagents, write tools, MCP discovery, LSP tools, and Cursor/Claude compatibility
+scanners for the child.
+
+To avoid loading personal Grok plugins, hooks, MCPs, skills, or model overrides,
+each process receives a fresh temporary `HOME` and `GROK_HOME`. The bridge
+copies only the existing `auth.json` login into that private runtime with mode
+`0600`; it never returns or modifies the source credential, and the temporary
+copy, logs, cache, and sessions are deleted after the call.
+The preflight also requires every inspected configuration layer to live inside
+the fresh temporary Grok home, preventing a local model/provider mapping from
+silently replacing the isolated grok.com route.
+
+The xAI `strict` sandbox is not itself a promise of filesystem read-only
+behavior. Read-only behavior comes from layered tool removal, permission denies,
+feature disabling, integration isolation, and fail-closed workspace inspection.
+Grok CLI 0.2.99 rejects `--check` when combined with the stronger explicit
+`--no-subagents` control, so v0.2 keeps `--no-subagents` and supplies the
+self-check in the bounded role instructions. `grok_status()` reports this
+compatibility state rather than hiding it.
+See xAI's [CLI reference](https://docs.x.ai/build/cli/reference),
+[settings reference](https://docs.x.ai/build/settings/reference), and
+[enterprise security guidance](https://docs.x.ai/build/enterprise).
 
 ## Environment variables
 
 | Variable | Purpose |
 | --- | --- |
-| `GROK_CLI_PATH` | Explicit path to the Grok executable; takes priority over `PATH` |
-| `GROK_HOME` | Optional Grok data/configuration home honored by the Grok CLI |
+| `GROK_CLI_PATH` | Explicit Grok executable; takes priority over `PATH` |
+| `GROK_HOME` | Source location for the existing local grok.com login; defaults to `~/.grok` |
 
-The bridge also sets `NO_COLOR=1` and `RUST_LOG=error`. Research mode enables
-Grok web fetch for that child process.
+Provider credentials and route overrides from the Codex environment are not
+forwarded to Grok.
+
+## Updating
+
+Refresh the Git marketplace, reinstall the snapshot, and start a new task:
+
+```sh
+codex plugin marketplace upgrade grok-plugin
+codex plugin add grok-orchestrator@grok-plugin
+```
+
+See [CHANGELOG.md](CHANGELOG.md) for release details.
 
 ## Troubleshooting
 
@@ -302,8 +407,8 @@ command -v grok
 grok --version
 ```
 
-If Grok is installed somewhere non-standard, set `GROK_CLI_PATH` before
-starting Codex.
+Set `GROK_CLI_PATH` before starting Codex when Grok is in a nonstandard
+location.
 
 ### Login or model unavailable
 
@@ -312,35 +417,25 @@ grok login
 grok models
 ```
 
-The model list must advertise the exact `grok-4.5` ID. A different default
-model is acceptable because every plugin call explicitly pins `grok-4.5`.
+The model list must contain the exact `grok-4.5` ID.
 
-### Tools do not appear in Codex
+### Route isolation failed
 
-1. Confirm the plugin is installed with `codex plugin list`.
+Run `grok_status()`. For workspace reviews, remove or disable project-scoped
+Grok hooks, plugins, and MCP servers before retrying. The plugin deliberately
+does not rewrite Grok configuration.
+
+### Tools do not appear
+
+1. Confirm the plugin with `codex plugin list --json`.
 2. Start a new Codex task.
 3. Ask Codex to run `grok_status()`.
 
 ### Call timed out
 
-The Grok process limit is 600 seconds. Narrow the packet or workspace scope and
-retry. A failed proactive check is not approval; Codex should disclose the
-failure and continue only when the Grok call was optional.
-
-### Research returned weak sources
-
-Ask for primary sources and direct links in the packet. Grok's source list is
-still untrusted; Codex should open and verify material sources independently.
-
-## Updating
-
-Refresh the Git marketplace, reinstall the updated plugin snapshot, and start a
-new task:
-
-```sh
-codex plugin marketplace upgrade grok-plugin
-codex plugin add grok-orchestrator@grok-plugin
-```
+Narrow the packet or workspace scope and retry. A failed proactive cross-check
+is not approval; Codex should disclose the failure and continue only when the
+call was optional.
 
 ## Uninstalling
 
@@ -349,31 +444,33 @@ codex plugin remove grok-orchestrator@grok-plugin
 codex plugin marketplace remove grok-plugin
 ```
 
-Uninstalling the Codex plugin does not modify Grok configuration, credentials,
-or private Grok cache/session files.
+Uninstalling does not modify Grok configuration or credentials.
 
 ## Repository layout
 
 ```text
-.agents/plugins/marketplace.json          Codex marketplace catalog
+.agents/plugins/marketplace.json             Codex marketplace catalog
+CHANGELOG.md                                 Release history
 plugins/grok-orchestrator/
-├── .codex-plugin/plugin.json             Plugin metadata
-├── .mcp.json                             MCP launch configuration
-├── scripts/grok_mcp.py                   Dependency-free stdio bridge
-├── scripts/agent_profiles/               Bounded Grok role definitions
-├── skills/grok-orchestrator/SKILL.md      Codex orchestration policy
-└── tests/test_grok_mcp.py                Fake-CLI unit and protocol tests
+├── .codex-plugin/plugin.json                Plugin metadata
+├── .mcp.json                                MCP launch configuration
+├── scripts/grok_mcp.py                      Dependency-free stdio bridge
+├── scripts/agent_profiles/                  Five pinned Grok role profiles
+├── skills/grok-orchestrator/SKILL.md         Codex orchestration policy
+└── tests/test_grok_mcp.py                   Fake-CLI unit and protocol tests
+tests/test_release.py                        Package and release contract tests
 ```
 
 ## Development
 
-Run the unit tests:
+Run all tests:
 
 ```sh
 python3 -m unittest discover -s plugins/grok-orchestrator/tests -v
+python3 -m unittest discover -s tests -v
 ```
 
-Validate the skill and plugin package:
+Validate the skill and plugin:
 
 ```sh
 python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
@@ -383,23 +480,29 @@ python3 ~/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py \
   plugins/grok-orchestrator
 ```
 
-The tests use a fake Grok executable. They verify binary resolution, exact
-model and effort flags, role tool boundaries, strict sandboxing, prompt-file
-permissions and cleanup, workspace validation, timeouts, malformed responses,
-error redaction, and core MCP methods without consuming Grok allowance.
+The fake CLI suite covers model/effort pinning, role allowlists, schemas,
+semantic validation, strict sandboxing, minimal environment behavior, profile
+integrity, status states, panel independence, prompt cleanup, output limits,
+timeouts, process-tree cleanup, redaction, and MCP protocol behavior without
+using Grok allowance.
+
+Release verification additionally performs an isolated marketplace
+install/reinstall, checks the cached snapshot, exercises stdio discovery, runs
+`grok_status` against the real CLI, and makes one minimal live call.
 
 ## Limitations
 
-- Only `grok-4.5` with `high` effort is supported in v0.1.
+- Only `grok-4.5` with high effort is supported.
 - Grok is advisory and cannot implement changes.
-- Calls do not share or resume a Grok session.
-- Web and workspace claims are not automatically trusted or independently
-  verified by the bridge.
-- Availability checks do not make a model call and therefore do not prove a
-  future request will complete successfully.
+- Calls do not share or resume sessions.
+- The bridge validates structure, not the truth of Grok's claims.
+- `ready_unverified` cannot guarantee that the next network request will
+  succeed.
+- Workspace content selected for review leaves the machine for Grok inference.
 
 ## Author and license
 
-Created and maintained by [keiranhaax](https://github.com/keiranhaax).
+Created and maintained by
+[Keiran Haax (@keiranhaax)](https://github.com/keiranhaax).
 
 Licensed under the [MIT License](LICENSE).

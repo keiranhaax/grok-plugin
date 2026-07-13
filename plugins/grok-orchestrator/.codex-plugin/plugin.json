@@ -1,9 +1,9 @@
 {
   "name": "grok-orchestrator",
-  "version": "0.1.0",
-  "description": "Consult Grok 4.5 from Codex for bounded advice, research, and read-only workspace review.",
+  "version": "0.2.0",
+  "description": "Orchestrate structured, read-only Grok 4.5 advice, research, plan gates, panels, and workspace reviews from Codex.",
   "author": {
-    "name": "keiranhaax",
+    "name": "Keiran Haax",
     "url": "https://github.com/keiranhaax"
   },
   "repository": "https://github.com/keiranhaax/grok-plugin",
@@ -18,19 +18,21 @@
   "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Grok Orchestrator",
-    "shortDescription": "Consult Grok 4.5 from Codex",
-    "longDescription": "Keep Codex in charge while Grok 4.5 provides high-effort advice, sourced research, and read-only workspace reviews.",
-    "developerName": "keiranhaax",
+    "shortDescription": "Bounded Grok 4.5 review for Codex",
+    "longDescription": "Keep Codex in charge while Grok 4.5 provides high-effort structured plan gates, sourced research, independent panels, and read-only workspace reviews.",
+    "developerName": "Keiran Haax",
     "category": "Productivity",
     "capabilities": [
       "Grok 4.5 consultation",
-      "Web research",
-      "Read-only workspace review"
+      "Structured plan gate",
+      "Structured web research",
+      "Read-only workspace review",
+      "Opt-in independent review panel"
     ],
     "defaultPrompt": [
-      "Ask Grok 4.5 to challenge this plan.",
-      "Use Grok 4.5 to research this decision.",
-      "Have Grok 4.5 review this workspace."
+      "Ask Grok 4.5 to gate this plan and return PLAN_APPROVED or PLAN_REVISE.",
+      "Use Grok 4.5 to research this decision with structured claims and sources.",
+      "Run a two-member Grok panel, then compare the independent reviews."
     ]
   }
 }
