@@ -12,6 +12,11 @@ All notable changes to Grok Advisor are documented here.
   that distinguishes Codex-side advisor policy from the MCP runtime boundary and
   documents the no-model status path plus parallel panel behavior.
 
+### Fixed
+
+- Removed raw semicolons from the architecture notes so GitHub's Mermaid parser
+  renders the sequence diagram instead of treating note prose as new statements.
+
 ## 0.2.0 - 2026-07-13
 
 ### Added

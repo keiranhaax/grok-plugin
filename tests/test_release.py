@@ -43,6 +43,7 @@ class ReleaseContractTests(unittest.TestCase):
 
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
         changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
+        architecture = readme.split("```mermaid", 1)[1].split("```", 1)[0]
         self.assertIn("version-0.2.0", readme)
         self.assertTrue(readme.startswith("# Grok Advisor for Codex\n"))
         self.assertIn("sequenceDiagram", readme)
@@ -50,9 +51,10 @@ class ReleaseContractTests(unittest.TestCase):
         self.assertIn("participant B as Read-only local stdio MCP bridge", readme)
         self.assertIn("select one role per Grok Advisor policy", readme)
         self.assertIn("B-->>C: Return a stable JSON envelope", readme)
-        self.assertIn("grok_status ends after preflight with no model call", readme)
+        self.assertIn("grok_status stops after preflight with no model call", readme)
         self.assertIn("Panel mode may run two or three independent", readme)
         self.assertNotIn("participant A as Grok Advisor", readme)
+        self.assertNotIn(";", architecture)
         self.assertIn("## Unreleased", changelog)
         self.assertIn("## 0.2.0", changelog)
 

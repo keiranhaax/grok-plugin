@@ -37,8 +37,8 @@ sequenceDiagram
     participant B as Read-only local stdio MCP bridge
     participant G as Fresh isolated Grok CLI process
 
-    Note over C,G: Codex retains control; Grok provides bounded, untrusted advice only
-    Note over B,G: Model-backed path shown; grok_status ends after preflight with no model call
+    Note over C,G: Codex retains control. Grok provides bounded, untrusted advice only
+    Note over B,G: Model-backed path shown. grok_status stops after preflight with no model call
     Note over B,G: Panel mode may run two or three independent Grok processes in parallel
 
     U->>C: Submit task
