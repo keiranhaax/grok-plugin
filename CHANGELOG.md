@@ -11,6 +11,8 @@ All notable changes to Grok Advisor are documented here.
 - Replaced the cyclic architecture flowchart with a request/response sequence
   that distinguishes Codex-side advisor policy from the MCP runtime boundary and
   documents the no-model status path plus parallel panel behavior.
+- Compacted the sequence diagram with two-line labels, activation bars, and a
+  transparent plugin-boundary group, moving status and panel caveats into prose.
 
 ### Fixed
 

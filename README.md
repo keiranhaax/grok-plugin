@@ -33,25 +33,28 @@ against repository evidence, primary sources, or direct tests.
 sequenceDiagram
     autonumber
     actor U as User
-    participant C as Codex — root orchestrator
-    participant B as Read-only local stdio MCP bridge
-    participant G as Fresh isolated Grok CLI process
+    participant C as Codex<br/>(orchestrator)
+    box transparent Plugin boundary
+        participant B as MCP Bridge<br/>(read-only, stdio)
+        participant G as Grok CLI<br/>(fresh, isolated)
+    end
 
-    Note over C,G: Codex retains control. Grok provides bounded, untrusted advice only
-    Note over B,G: Model-backed path shown. grok_status stops after preflight with no model call
-    Note over B,G: Panel mode may run two or three independent Grok processes in parallel
+    Note over C,G: Codex retains control — Grok provides bounded, untrusted advice only
 
-    U->>C: Submit task
-    C->>C: Build a bounded packet and select one role per Grok Advisor policy
-    C->>B: Invoke the role-specific MCP tool
-    B->>B: Validate arguments, preflight, and isolate the runtime
-    B->>G: Run grok-4.5 with high effort
-    G-->>B: Return a role-specific response
-    B->>B: Validate, redact, clean up, and wrap
-    B-->>C: Return a stable JSON envelope
-    C->>C: Verify evidence, decide, and take any authorized action
-    C-->>U: Deliver the verified result
+    U->>+C: Submit task
+    C->>C: Build bounded packet,<br/>select one role
+    C->>+B: Invoke role-specific MCP tool
+    B->>B: Validate args, preflight,<br/>isolate runtime
+    B->>+G: Run grok-4.5 (high effort)
+    G-->>-B: Role-specific response
+    B->>B: Validate, redact, wrap
+    B-->>-C: Stable JSON envelope
+    C->>C: Verify evidence, decide, act
+    C-->>-U: Verified result
 ```
+
+> `grok_status` stops after preflight with no model call. Panel mode may run
+> two or three independent Grok processes in parallel.
 
 Codex is the sole root orchestrator. The Grok Advisor skill is Codex-side policy
 for choosing one bounded role; it is not a separate agent. Codex sends a
@@ -62,9 +65,8 @@ acting or responding.
 
 Every model-backed call uses a fresh stateless Grok process pinned to `grok-4.5`
 and high effort. Responses are role-specific: `consult_grok` returns prose,
-while plan, research, workspace, and panel modes return structured results.
-`grok_status` makes no model call. Panel mode may launch two or three independent
-processes in parallel; Codex alone compares and synthesizes their reviews.
+while plan, research, workspace, and panel modes return structured results. Codex
+alone compares and synthesizes independent panel reviews.
 
 ## Tools
 
