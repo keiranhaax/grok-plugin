@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "grok-orchestrator": {
+      "command": "python3",
+      "args": [
+        "scripts/grok_mcp.py"
+      ],
+      "cwd": ".",
+      "tool_timeout_sec": 900
+    }
+  }
+}

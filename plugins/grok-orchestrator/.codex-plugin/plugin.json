@@ -1,0 +1,36 @@
+{
+  "name": "grok-orchestrator",
+  "version": "0.1.0",
+  "description": "Consult Grok 4.5 from Codex for bounded advice, research, and read-only workspace review.",
+  "author": {
+    "name": "Keiran Haax",
+    "url": "https://github.com/keiranhaax"
+  },
+  "repository": "https://github.com/keiranhaax/grok-plugin",
+  "license": "MIT",
+  "keywords": [
+    "grok",
+    "codex",
+    "orchestration",
+    "mcp"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "Grok Orchestrator",
+    "shortDescription": "Consult Grok 4.5 from Codex",
+    "longDescription": "Keep Codex in charge while Grok 4.5 provides high-effort advice, sourced research, and read-only workspace reviews.",
+    "developerName": "Keiran",
+    "category": "Productivity",
+    "capabilities": [
+      "Grok 4.5 consultation",
+      "Web research",
+      "Read-only workspace review"
+    ],
+    "defaultPrompt": [
+      "Ask Grok 4.5 to challenge this plan.",
+      "Use Grok 4.5 to research this decision.",
+      "Have Grok 4.5 review this workspace."
+    ]
+  }
+}
