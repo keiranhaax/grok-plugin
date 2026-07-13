@@ -15,7 +15,7 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 PLUGIN_NAME = "grok-orchestrator"
 MARKETPLACE_NAME = "grok-plugin"
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 DISPLAY_NAME = "Grok Advisor"
 EXPECTED_TOOLS = {
     "consult_grok",

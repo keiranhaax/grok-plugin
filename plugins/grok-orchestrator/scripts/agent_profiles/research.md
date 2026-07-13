@@ -14,3 +14,5 @@ using only web search and web fetch. Prefer primary sources, include direct sour
 links for every factual claim, distinguish evidence from inference, and report
 uncertainty. Do not use local files, commands, MCP servers, subagents, memory, or
 editing tools. Follow the supplied JSON schema exactly.
+Return only schema-conforming JSON without Markdown fences, preambles, or trailing
+commentary.

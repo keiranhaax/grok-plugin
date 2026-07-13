@@ -1,6 +1,6 @@
 {
   "name": "grok-orchestrator",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Use Grok 4.5 as a structured, read-only advisor for plan gates, research, panels, and workspace reviews in Codex.",
   "author": {
     "name": "Keiran Haax",

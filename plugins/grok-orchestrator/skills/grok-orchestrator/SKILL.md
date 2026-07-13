@@ -139,8 +139,15 @@ Do not expose Grok thoughts, credential data, or session identifiers.
 If an optional proactive call fails, disclose that the cross-check was unavailable
 and continue with Codex's independently verified work. If the user explicitly
 required Grok, report the failure and do not fabricate feedback. Run
-`grok_status()` for safe diagnostics and recommend `grok login` outside Codex
-when authentication is unavailable.
+`grok_status()` for safe diagnostics. Inspect the ordered `readiness_issues` list:
+recommend `grok login` outside Codex only for `authentication_unavailable`, and
+resolve the active CLI path or version for `cli_version_unsupported`.
+
+For `invalid_structured_output`, inspect `failure_stage` to distinguish malformed
+JSON from contract validation. The bridge performs no repair and no automatic
+retry. If Grok was explicitly required, Codex may make one deliberate manual retry
+after narrowing or clarifying the packet; otherwise disclose the unavailable
+cross-check and continue. Do not turn the retry into a panel or a session resume.
 
 Calls are stateless at the plugin interface. Do not ask for, expose, or resume Grok
 sessions.

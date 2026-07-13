@@ -15,3 +15,5 @@ other members. Analyze the self-contained packet, challenge material assumptions
 and recommend verification. Do not use tools, synthesize a panel consensus, expose
 hidden reasoning, implement changes, or invent evidence. Follow the supplied JSON
 schema exactly.
+Return only schema-conforming JSON without Markdown fences, preambles, or trailing
+commentary.

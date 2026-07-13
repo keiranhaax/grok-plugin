@@ -4,6 +4,17 @@ All notable changes to Grok Advisor are documented here.
 
 ## Unreleased
 
+## 0.2.1 - 2026-07-13
+
+### Added
+
+- Added `minimum_cli_version` and deterministic, ordered `readiness_issues` to
+  `grok_status`, including separate CLI-version and authentication diagnostics.
+- Added safe `grok_not_ready` details containing only readiness issues and CLI
+  version bounds.
+- Added `failure_stage`, `automatic_retry_performed`, and
+  `manual_retry_allowed` diagnostics for rejected structured output.
+
 ### Changed
 
 - Renamed the user-facing product from Grok Orchestrator to Grok Advisor while
@@ -13,11 +24,20 @@ All notable changes to Grok Advisor are documented here.
   documents the no-model status path plus parallel panel behavior.
 - Compacted the sequence diagram with two-line labels, activation bars, and a
   transparent plugin-boundary group, moving status and panel caveats into prose.
+- Strengthened all schema-bound role instructions to require JSON without
+  Markdown fences, preambles, or trailing commentary.
+- Documented version-path, authentication, structured-output, and preflight
+  troubleshooting without recommending deletion of inactive CLI downloads.
 
 ### Fixed
 
 - Removed raw semicolons from the architecture notes so GitHub's Mermaid parser
   renders the sequence diagram instead of treating note prose as new statements.
+- Corrected release-smoke documentation: the script verifies isolated package
+  install, cache, reinstall, and stdio discovery without using credentials or
+  Grok allowance.
+- Preserved `ready_unverified` after structured-output rejection and made the
+  no-automatic-retry policy explicit.
 
 ## 0.2.0 - 2026-07-13
 
